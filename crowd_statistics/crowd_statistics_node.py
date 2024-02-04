@@ -46,6 +46,20 @@ class ImageData(Structure):
 class Crowd_Statistics(Node):
         def __init__(self):
                 super().__init__('crowd_statistics')
+                # 获取相机旋转环境变量
+                self.panel_front_camera = os.environ.get('PANEL_FRONT_CAMERA')
+                if self.panel_front_camera is not None:
+                        self.panel_front_camera = int(self.panel_front_camera)
+                else:
+                        self.get_logger().info('没有获取到 PANEL_FRONT_CAMERA 环境变量，手动将其设置为0')
+                        self.panel_front_camera = 0
+
+                self.panel_back_camera = int(os.environ.get('PANEL_BACK_CAMERA'))
+                if self.panel_back_camera is not None:
+                        self.panel_back_camera = int(self.panel_back_camera)
+                else:
+                        self.get_logger().info('没有获取到 PANEL_BACK_CAMERA 环境变量，手动将其设置为0')
+                        self.panel_back_camera = 0
                 # 创建行人观看数据发布器
                 self.viewer_publisher = self.create_publisher(CrowdStatistics,'ad_viewer_count',qos_profile_system_default)
                 # nanodet模型配置参数
@@ -135,7 +149,14 @@ class Crowd_Statistics(Node):
                         self.gpuMat_cv = cv2.cuda.createGpuMatFromCudaMemory(image.height,image.width,cv2.CV_8UC4,image.devptr,image.pitch)
                         self.gpuMat_cv = cv2.cuda.cvtColor(self.gpuMat_cv,cv2.COLOR_BGRA2RGB)
                         self.gpuMat_cv = cv2.cuda.resize(self.gpuMat_cv,(480,640))#540,960
-
+                        # 是否旋转图像
+                        if image.image_id == 0:
+                                if self.panel_front_camera == 1:
+                                        self.gpuMat_cv = cv2.flip(self.gpuMat_cv,0)
+                        else:
+                                if self.panel_back_camera == 1:
+                                        self.gpuMat_cv = cv2.flip(self.gpuMat_cv,0)
+                        # self.gpuMat_cv = cv2.cuda.rotate(self.gpuMat_cv,rotateCode=cv2.ROTATE_180)
                         # 将数据从guMat拷贝到tensor
                         # gpumat_shape = self.gpuMat_cv.download().shape
                         self.gpuTensor = torch.zeros((self.gpuMat_cv.size()[1],self.gpuMat_cv.size()[0],3),device=self.device,dtype=torch.uint8)
